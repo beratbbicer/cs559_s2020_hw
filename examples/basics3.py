@@ -1,5 +1,3 @@
-# not working, here for example network architecture
-
 import tensorflow as tf
 
 def create_new_conv_layer(input, num_input_channels, num_filters, filter_shape, pool_shape, name):
@@ -26,6 +24,8 @@ def oned_conv_layer(input, num_filters, name):
     w = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.03), name=name+'_w')
     b = tf.Variable(tf.truncated_normal([num_filters]), name=name+'_b')
     return tf.nn.relu(tf.nn.conv2d(input, w, [1, 1, 1, 1], padding='VALID') + b)
+
+mnist = read_data_sets("MNIST_data", one_hot=True)
 
 # Python optimisation variables
 epochs = 10
@@ -55,15 +55,22 @@ cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pr
 
 # Optimizer
 optimizer = tf.train.AdamOptimizer().minimize(cross_entropy)
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
-nt = {'GPU': 0})) as sess:
+
+# Performance metric
+correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(preds, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+# setup the initialisation operator
+init_op = tf.global_variables_initializer()
+
+with tf.Session(config=tf.ConfigProto(device_count = {'GPU': 0})) as sess:
     # initialise the variables
     sess.run(init_op)
-    total_batch = int(len(x_train.shape[0]) / batch_size)
+    total_batch = int(len(mnist.train.labels) / batch_size)
     for epoch in range(epochs):
         avg_cost = 0
         for i in range(total_batch):
-            batch_x, batch_y = get_next_batch(batch_size)
+            batch_x, batch_y = mnist.train.next_batch(batch_size=batch_size)
             _, c = sess.run([optimizer, cross_entropy], feed_dict={x: batch_x, y: batch_y})
             avg_cost += c / total_batch
         test_acc = sess.run(accuracy, feed_dict={x: mnist.test.images, y: mnist.test.labels})
